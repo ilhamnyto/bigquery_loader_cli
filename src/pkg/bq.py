@@ -3,10 +3,10 @@ from typing import List
 from google.cloud import bigquery
 from google.oauth2 import service_account
 
-credentials = service_account.Credentials.from_service_account_file('credentials.json')
 
 class BQTable:
-    def __init__(self) -> None:
+    def __init__(self, filename: str) -> None:
+        credentials = service_account.Credentials.from_service_account_file(filename)
         self.client = bigquery.Client(credentials=credentials)
 
     def set_table(self, project_name: str, dataset_id: str, table_id: str) -> bigquery.Table:
@@ -24,7 +24,7 @@ class BQTable:
         try:
             job_config = bigquery.LoadJobConfig(
                 write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE,
-                autodetect=False,
+                autodetect=True,
                 source_format=bigquery.SourceFormat.CSV,
             )
             self.client.load_table_from_dataframe(data, table, job_config=job_config)
@@ -35,7 +35,7 @@ class BQTable:
         try:
             job_config = bigquery.LoadJobConfig(
                 write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
-                autodetect=False,
+                autodetect=True,
                 source_format=bigquery.SourceFormat.CSV,
             )
             
@@ -43,5 +43,5 @@ class BQTable:
         except Exception as e:
             print(e)
         
-def BQTableLoader() -> BQTable:
-    return BQTable()
+def BQTableLoader(filename: str) -> BQTable:
+    return BQTable(filename)
