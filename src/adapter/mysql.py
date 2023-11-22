@@ -11,7 +11,7 @@ class Connection:
         self.port = int(os.getenv('MYSQL_PORT', 3306))
         self.user = os.getenv('MYSQL_USER', 'root')
         self.password = os.getenv('MYSQL_PASSWORD', '')
-        self.db = os.getenv('MYSQL _DB', '')
+        self.db = os.getenv('MYSQL_DB', '')
 
     async def create_pool(self) -> aiomysql.Pool:
         conf = {
