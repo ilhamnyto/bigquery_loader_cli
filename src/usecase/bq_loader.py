@@ -12,6 +12,7 @@ from src.pkg.bq import BQTableLoader
 from yaspin.spinners import Spinners
 from sshtunnel import SSHTunnelForwarder
 from src.adapter.mysql import MySQLConnection, Connection
+from src.adapter.postgres import PostgreSQLConnection
 
 warnings.filterwarnings("ignore")
 
@@ -24,17 +25,19 @@ class Loader():
         try:
             if database.lower() == 'mysql':
                 self.conn = MySQLConnection(credentials)
+            elif database.lower() == 'postgresql':
+                self.conn = PostgreSQLConnection(credentials)
 
             self.spinner.start()
             pool = await self.conn.create_pool()
             self.spinner.stop()
             
             self.spinner.start()
-            tables = await self.get_table_names(pool)
+            tables = await self.get_table_names(pool, database)
             self.spinner.stop()
             selected_tables = inquirer.list_input("Choose source database?", choices=tables)
             
-            schema = await self.get_source_table_schema(pool, credentials['db'], selected_tables)
+            schema = await self.get_source_table_schema(pool, database, credentials['db'], selected_tables)
             data = await self.get_data(self.conn, pool, selected_tables)
             filename = ""
             if not os.path.exists("credentials.json"):
@@ -69,14 +72,21 @@ class Loader():
             self.spinner.stop()
             print(f"💥 {repr(e)}")
  
-    async def get_source_table_schema(self, pool: aiomysql.Pool, db_name: str, table_name: str) -> dict:
-        query = """SELECT column_name, data_type
-                    FROM information_schema.columns
-                    WHERE table_schema = '{db_name}' AND table_name = '{table_name}'""".format(db_name=db_name, table_name=table_name)
+    async def get_source_table_schema(self, pool: aiomysql.Pool, database: str, db_name: str, table_name: str) -> dict:
+        query = ""
+        if database.lower() == 'mysql':
+            query = """SELECT column_name, data_type
+                        FROM information_schema.columns
+                        WHERE table_schema = '{db_name}' AND table_name = '{table_name}'""".format(db_name=db_name, table_name=table_name)
+        elif database.lower() == 'postgresql':
+            query = """SELECT column_name, data_type
+                        FROM information_schema.columns
+                        WHERE table_schema = 'public' AND table_name = '{table_name}';""".format(table_name=table_name)
+
         _, result = await self.conn.get_query(pool, query)
         data = [list(a) for a in result]
         for row in data:
-            if row[1] == 'int':
+            if row[1] == 'int' or 'integer' or 'smallint':
                 row[1] = 'INT64'
             elif row[1] == 'numeric':
                 row[1] = 'NUMERIC'
@@ -84,13 +94,13 @@ class Loader():
                 row[1] = 'BIGNUMERIC'
             elif row[1] == 'float':
                 row[1] = 'FLOAT64'
-            elif row[1] == 'datetime':
+            elif row[1] == 'datetime' or 'timestamp without time zone':
                 row[1] = 'DATETIME'
             elif row[1] == 'date':
                 row[1] = 'DATE'
             elif row[1] == 'bool':
                 row[1] = 'BOOLEAN'
-            elif row[1] == 'varchar':
+            elif row[1] == 'varchar' or 'character varying':
                 row[1] = 'STRING'
 
         schema = [
@@ -99,10 +109,19 @@ class Loader():
 
         return schema
     
-    async def get_table_names(self, pool: aiomysql.Pool) -> list:
-        query = """
-                show tables
-            """
+    async def get_table_names(self, pool: aiomysql.Pool, database: str) -> list:
+        query = ""
+        if database.lower() == 'mysql':
+            query = """
+                    show tables
+                """
+        elif database.lower() == 'postgresql':
+            query = """
+                    SELECT table_name
+                    FROM information_schema.tables
+                    WHERE table_schema = 'public' AND table_type = 'BASE TABLE';
+                """
+
         _, result = await self.conn.get_query(pool, query)
 
         return [a[0] for a in list(result)]
@@ -152,7 +171,7 @@ class Loader():
 
 
     def get_db_input(self) -> (dict, str):
-        selected_db = inquirer.list_input("Choose source database?", choices=['MySQL'])
+        selected_db = inquirer.list_input("Choose source database?", choices=['MySQL', 'PostgreSQL'])
         print(f"[yellow]Please input your {selected_db} database credentials.[/yellow]")
         db_credentials = {}
         print(f"[bold yellow]Host: [/bold yellow]", end=' ')
