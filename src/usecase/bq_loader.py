@@ -37,8 +37,8 @@ class Loader():
             self.spinner.stop()
             selected_tables = inquirer.list_input("Choose source database?", choices=tables)
             
-            schema = await self.get_source_table_schema(pool, database, credentials['db'], selected_tables)
             data = await self.get_data(self.conn, pool, selected_tables)
+            schema, data = await self.get_source_table_schema(pool, database, credentials['db'], selected_tables, data)
             filename = ""
             if not os.path.exists("credentials.json"):
                 sa_option = inquirer.list_input("credentials.json is not found in the root folder, have you download your BigQuery project service account?", choices=['Yes.', 'Not yet.'])
@@ -72,7 +72,7 @@ class Loader():
             self.spinner.stop()
             print(f"💥 {repr(e)}")
  
-    async def get_source_table_schema(self, pool: aiomysql.Pool, database: str, db_name: str, table_name: str) -> dict:
+    async def get_source_table_schema(self, pool: aiomysql.Pool, database: str, db_name: str, table_name: str, df: pd.DataFrame) -> dict:
         query = ""
         if database.lower() == 'mysql':
             query = """SELECT column_name, data_type
@@ -84,30 +84,35 @@ class Loader():
                         WHERE table_schema = 'public' AND table_name = '{table_name}';""".format(table_name=table_name)
 
         _, result = await self.conn.get_query(pool, query)
+
         data = [list(a) for a in result]
+        columns = df.columns.tolist()
+        w = data.sort(key=lambda x: columns.index(x[0]))
+
         for row in data:
-            if row[1] == 'int' or 'integer' or 'smallint':
+            if row[1] == 'int' or row[1] == 'integer' or row[1] =='smallint':
                 row[1] = 'INT64'
             elif row[1] == 'numeric':
                 row[1] = 'NUMERIC'
+            elif row[1] == 'decimal':
+                row[1] = 'FLOAT'
             elif row[1] == 'bigint':
                 row[1] = 'BIGNUMERIC'
             elif row[1] == 'float':
                 row[1] = 'FLOAT64'
-            elif row[1] == 'datetime' or 'timestamp without time zone':
+            elif row[1] == 'datetime' or row[1] == 'timestamp without time zone':
                 row[1] = 'DATETIME'
             elif row[1] == 'date':
                 row[1] = 'DATE'
             elif row[1] == 'bool':
                 row[1] = 'BOOLEAN'
-            elif row[1] == 'varchar' or 'character varying':
+            elif row[1] == 'varchar' or row[1] == 'character varying':
                 row[1] = 'STRING'
-
+        
         schema = [
             bigquery.SchemaField(column, types) for column, types in data
         ]
-
-        return schema
+        return schema, df[[x[0] for x in data]]
     
     async def get_table_names(self, pool: aiomysql.Pool, database: str) -> list:
         query = ""
@@ -127,7 +132,7 @@ class Loader():
         return [a[0] for a in list(result)]
     
     async def get_data(self, client: Connection, pool: aiomysql.Pool, table: str) -> pd.DataFrame:
-        query = f"select * from {table} limit 5"
+        query = f"select * from {table}"
         columns_name, result = await client.get_query(pool, query)
         data = [{columns_name[i] : row[i] for i in range(len(columns_name))} for row in result]
         df = pd.DataFrame(data)
