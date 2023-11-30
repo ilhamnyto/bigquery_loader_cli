@@ -1,14 +1,19 @@
-# Manga Downloader using Python
+# BigQuery Loader Command Line Interface
 
-This project is a personal learning project aimed at loading data from your database into BigQuery using command line interface. you can also using SSH tunnel to connect to your database to load the data from it. the program will automatically load your selected table to your BigQuery project.
+This project is a personal learning project aimed at loading data from your database or files into BigQuery using command line interface. you can also using SSH tunnel to connect to your database to load the data from it. the program will automatically load your selected table to your BigQuery project.
 
 ## Features
 
-- Load data from database to BigQuery
+- Load data from database or files to BigQuery
 
 ## Supported Database
 - [x] MySQL
 - [x] PostgreSQL
+
+## Supported Files
+- [x] CSV
+- [x] Excel
+- [x] JSON
 
 ## Installation
 
