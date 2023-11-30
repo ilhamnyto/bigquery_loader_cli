@@ -6,6 +6,10 @@ This project is a personal learning project aimed at loading data from your data
 
 - Load data from database to BigQuery
 
+## Supported Database
+- [x] MySQL
+- [x] PostgreSQL
+
 ## Installation
 
 To run this project locally, follow these steps:
