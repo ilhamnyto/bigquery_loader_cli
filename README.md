@@ -24,8 +24,9 @@ To run this project locally, follow these steps:
 3. Activate virtualenv `source venv/Scripts/activate` (Windows) or `source venv/bin/activate` (Linux)
 4. Install dependencies: `pip install -r requirements.txt`.
 5. Place your BigQuery projects service account json file in the root folder.
-6. Rename your service account json file as `credentials.json` so it will automatically detected by the program (Optional).
-7. Run the program: `python app.py`
+6. If you want to load data from files you can place the file ing the `files` folder. 
+7. Rename your service account json file as `credentials.json` so it will automatically detected by the program (Optional).
+8. Run the program: `python app.py`
 
 ## License
 
