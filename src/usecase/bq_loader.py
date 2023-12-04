@@ -36,10 +36,12 @@ class Loader():
             self.spinner.start()
             tables = await self.get_table_names(pool, database)
             self.spinner.stop()
-            selected_tables = inquirer.list_input("Choose source database?", choices=tables)
+            selected_tables = inquirer.list_input("Choose source tables?", choices=tables)
             
+            self.spinner.start()
             data = await self.get_data(self.conn, pool, selected_tables)
             schema, data = await self.get_source_table_schema(pool, database, credentials['db'], selected_tables, data)
+            self.spinner.stop()
 
             self.insert_to_bq(schema, data, selected_tables)
 
